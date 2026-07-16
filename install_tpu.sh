@@ -6,7 +6,7 @@ cd build
 echo "set(USE_ASCEND ON)" >> config.cmake
 
 echo "Running CMake for TileLang..."
-cmake ..
+cmake .. -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 if [ $? -ne 0 ]; then
     echo "Error: CMake configuration failed."
     exit 1
