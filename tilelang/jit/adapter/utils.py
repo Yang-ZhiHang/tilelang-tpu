@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import re
 import os
+from dataclasses import dataclass
 from typing import Union, Optional, Literal
 from tilelang import tvm as tvm
 from tvm import IRModule, tir
@@ -63,14 +64,70 @@ def is_hip_target(target: Target) -> bool:
 def is_cpu_target(target: Target) -> bool:
     return target.kind.name in ["c"]
 
+
 def is_tpu_target(target: Target) -> bool:
-    if isinstance(target,str):
-        return target=="tpu"
+    if isinstance(target, str):
+        return target == "tpu"
     return target.kind.name == "tpu"
+
 
 def get_tpu_template_dir() -> str:
     current_dir = os.path.dirname(os.path.abspath(__file__))
     return os.path.abspath(os.path.join(current_dir, "../../../src/tl_templates/tpu"))
+
+
+@dataclass(frozen=True)
+class ChipConfig:
+    """Per-CHIP build configuration aggregated into a single lookup table."""
+
+    # Emulator SDK subdirectory under {PPL_TOP}/runtime/{chip}/
+    emulator_sdk_relate_path: str
+    # Emulator shared library filename (full .so name)
+    emulator_soname: str
+    # Host-side runtime installation sysroot (absolute path)
+    runtime_sysroot: str
+    # Host-side runtime link library names (passed to -l)
+    runtime_link_libs: list[str]
+    # Cross-compilation toolchain path, relative to PPL_TOP
+    toolchain_relpath: str
+    # Cross-compilation GCC prefix (e.g. "riscv64-unknown-linux-gnu-")
+    toolchain_prefix: str
+
+    def toolchain_dir(self, ppl_top: str) -> str:
+        """Absolute path to the cross-compilation toolchain directory."""
+        return f"{ppl_top}/{self.toolchain_relpath}"
+
+    def cross_compile(self, ppl_top: str) -> str:
+        """Full cross-compiler prefix including path, e.g. /path/to/bin/riscv64-unknown-linux-gnu-."""
+        return f"{self.toolchain_dir(ppl_top)}/bin/{self.toolchain_prefix}"
+
+
+_CHIP_CONFIGS: dict[str, ChipConfig] = {
+    "bm1690":
+        ChipConfig(
+            emulator_sdk_relate_path="tpuv7-runtime-emulator",
+            emulator_soname="libtpuv7_emulator.so",
+            runtime_sysroot="/opt/tpuv7/tpuv7-current",
+            runtime_link_libs=["tpuv7_rt", "cdm_daemon_emulator", "pthread"],
+            toolchain_relpath="third_party/toolchains_dir/Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.6.1",
+            toolchain_prefix="riscv64-unknown-linux-gnu-",
+        ),
+    "bm1684x":
+        ChipConfig(
+            emulator_sdk_relate_path="libsophon/bmlib",
+            emulator_soname="libbmlib.so",
+            runtime_sysroot="/opt/sophon/libsophon-0.5.2",
+            runtime_link_libs=["bmlib", "pthread"],
+            toolchain_relpath="third_party/toolchains_dir/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu",
+            toolchain_prefix="aarch64-linux-gnu-",
+        ),
+}
+
+
+def get_chip_config(chip: str) -> ChipConfig | None:
+    """Return the :class:`ChipConfig` for *chip*, or ``None`` if unsupported."""
+    return _CHIP_CONFIGS.get(chip)
+
 
 def get_annotated_mod(
     func_or_mod: Union[tir.PrimFunc, tvm.IRModule],

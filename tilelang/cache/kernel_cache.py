@@ -108,6 +108,7 @@ class KernelCache:
         verbose: bool = False,
         pass_configs: dict = None,
         mode: Literal["pcie", "cmodel"] = "pcie",
+        chip: Literal["bm1690", "bm1684x"] = "bm1690",
     ) -> JITKernel:
         """
         Caches and reuses compiled kernels to avoid redundant compilation.
@@ -132,6 +133,7 @@ class KernelCache:
                 verbose=verbose,
                 pass_configs=pass_configs,
                 mode=mode,
+                chip=chip,
             )
 
         # key = self._generate_key(
@@ -163,8 +165,8 @@ class KernelCache:
             target_host=target_host,
             verbose=verbose,
             pass_configs=pass_configs,
-            mode=mode
-        )
+            mode=mode,
+            chip=chip)
         # if execution_backend == "dlpack":
         #     self.logger.warning("DLPack backend does not support cache saving to disk.")
         # else:

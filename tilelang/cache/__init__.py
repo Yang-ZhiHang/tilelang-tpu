@@ -23,6 +23,7 @@ def cached(
     verbose: Optional[bool] = False,
     pass_configs: Optional[dict] = None,
     mode: Literal["pcie", "cmodel"] = "pcie",
+    chip: Literal["bm1690", "bm1684x"] = "bm1690",
 ) -> JITKernel:
     """
     Caches and reuses compiled kerne(ls (using KernelCache class).
@@ -37,6 +38,7 @@ def cached(
         verbose=verbose,
         pass_configs=pass_configs,
         mode=mode,
+        chip=chip,
     )
 
 

@@ -25,9 +25,11 @@ import os
 from pathlib import Path
 import logging
 import numpy as np
+
 logger = logging.getLogger(__name__)
 
 current = os.path.dirname(os.path.abspath(__file__))
+
 
 def get_cython_compiler() -> Optional[str]:
     """Return the path to the Cython compiler.
@@ -159,6 +161,9 @@ class CythonKernelAdapter(BaseKernelAdapter):
     # execution mode for tpu
     mode: Literal["pcie", "cmodel"] = "pcie"
 
+    # chip type for tpu
+    chip: Literal["bm1690", "bm1684x"] = "bm1690"
+
     def __init__(self,
                  params: List[KernelParam],
                  result_idx: List[int],
@@ -169,7 +174,8 @@ class CythonKernelAdapter(BaseKernelAdapter):
                  kernel_global_source: Optional[str] = None,
                  verbose: bool = False,
                  pass_configs: Optional[Dict[str, Any]] = None,
-                 mode: Literal["pcie", "cmodel"] = "pcie"):
+                 mode: Literal["pcie", "cmodel"] = "pcie",
+                 chip: Literal["bm1690", "bm1684x"] = "bm1690"):
         """Initialize the adapter with the given TIR function or module.
         
         Args:
@@ -198,8 +204,9 @@ class CythonKernelAdapter(BaseKernelAdapter):
 
         self.verbose = verbose
         self.mode = mode
+        self.chip = chip
         self.wrapper = TLWrapper(self.target)
-        self.lib_generator = LibraryGenerator(self.target, self.mode)
+        self.lib_generator = LibraryGenerator(self.target, self.mode, self.chip)
 
         self.wrapper.assign_optimized_module(self.ir_module)
         self.wrapper.assign_pass_configs(pass_configs)
@@ -214,6 +221,7 @@ class CythonKernelAdapter(BaseKernelAdapter):
         if is_tpu_target(self.target):
             self.lib.tilelang_tpu_run.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
             self.lib.tilelang_tpu_run.restype = ctypes.c_int
+
             # TODO: 暂时使用ctypes，后续考虑更高效cython
             def lambda_forward(*args):
                 host_tensors = [arg.detach().cpu().contiguous() for arg in args]
@@ -234,15 +242,12 @@ class CythonKernelAdapter(BaseKernelAdapter):
                 ret = self.lib.tilelang_tpu_run(argv)
                 args_list = list(args)
                 for i in self.result_idx:
-                    result_tensor = torch.empty(
-                        args[i].shape, dtype=args[i].dtype, device="cpu")
-                    ctypes.memmove(
-                        result_tensor.data_ptr(),
-                        arg_buffers[i],
-                        arg_sizes[i])
+                    result_tensor = torch.empty(args[i].shape, dtype=args[i].dtype, device="cpu")
+                    ctypes.memmove(result_tensor.data_ptr(), arg_buffers[i], arg_sizes[i])
                     args_list[i][...] = result_tensor.to(args_list[i].device)
 
                 return ret
+
             self.func = lambda_forward
         else:
             self.lib.get_last_error.restype = ctypes.c_char_p

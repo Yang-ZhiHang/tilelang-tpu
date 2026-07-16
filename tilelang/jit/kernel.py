@@ -47,6 +47,7 @@ class JITKernel(object):
         pass_configs: Optional[Dict[str, Any]] = None,
         from_database: bool = False,
         mode: Literal["pcie", "cmodel"] = "pcie",
+        chip: Literal["bm1690", "bm1684x"] = "bm1690",
     ):
         """
         Initializes a TorchFunction instance.
@@ -82,7 +83,7 @@ class JITKernel(object):
             pass_configs = {}
         self.pass_configs = pass_configs
         self.mode = mode
-
+        self.chip = chip
         # If the target is specified as a string, validate it and convert it to a TVM Target.
         if isinstance(target, str):
             assert target in AVALIABLE_TARGETS, f"Invalid target: {target}"
@@ -121,19 +122,18 @@ class JITKernel(object):
         self.torch_function = adapter.func
 
     @classmethod
-    def from_database(
-        cls,
-        func: PrimFunc,
-        kernel_global_source: str,
-        kernel_lib_path: str,
-        params: List[KernelParam],
-        target: Union[str, Target],
-        target_host: Union[str, Target],
-        out_idx: Union[List[int], int],
-        execution_backend: Literal["dlpack", "ctypes", "cython"],
-        pass_configs: Optional[Dict[str, Any]] = None,
-        mode: Literal["pcie", "cmodel"] = "pcie",
-    ):
+    def from_database(cls,
+                      func: PrimFunc,
+                      kernel_global_source: str,
+                      kernel_lib_path: str,
+                      params: List[KernelParam],
+                      target: Union[str, Target],
+                      target_host: Union[str, Target],
+                      out_idx: Union[List[int], int],
+                      execution_backend: Literal["dlpack", "ctypes", "cython"],
+                      pass_configs: Optional[Dict[str, Any]] = None,
+                      mode: Literal["pcie", "cmodel"] = "pcie",
+                      chip: Literal["bm1690", "bm1684x"] = "bm1690"):
         """
         Alternative constructor to create a TorchFunction directly from a database.
         """
@@ -146,7 +146,7 @@ class JITKernel(object):
             pass_configs=pass_configs,
             from_database=True,
             mode=mode,
-        )
+            chip=chip)
 
         instance.adapter = instance._create_adapter_from_database(
             func_or_mod=func,
@@ -200,6 +200,7 @@ class JITKernel(object):
         pass_configs = self.pass_configs
 
         mode = self.mode
+        chip = self.chip
 
         # Compile the function with TVM, optimizing with shared memory lowering.
         enable_host_codegen = execution_backend == "dlpack"
@@ -246,7 +247,7 @@ class JITKernel(object):
                 verbose=verbose,
                 pass_configs=pass_configs,
                 mode=mode,
-            )
+                chip=chip)
         else:
             # Handle invalid backend.
             raise ValueError(f"Invalid execution backend: {execution_backend}")

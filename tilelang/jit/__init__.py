@@ -118,6 +118,7 @@ def compile(
     verbose: bool = False,
     pass_configs: Optional[Dict[str, Any]] = None,
     mode: Literal["pcie", "cmodel"] = "pcie",
+    chip: Literal["bm1690", "bm1684x"] = "bm1690",
 ) -> JITKernel:
     """
     Compile the given TileLang PrimFunc with TVM and build a JITKernel.
@@ -131,4 +132,5 @@ def compile(
         verbose=verbose,
         pass_configs=pass_configs,
         mode=mode,
+        chip=chip,
     )
