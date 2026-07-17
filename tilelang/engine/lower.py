@@ -199,6 +199,7 @@ def lower(
     runtime_only=False,
     enable_host_codegen=False,
     enable_device_compile=False,
+    chip: str = "bm1690",
 ) -> CompiledArtifact:
     '''
         enable_host_codegen: whether to enable host codegen, default is False, as we have our
@@ -224,6 +225,10 @@ def lower(
     _is_host_call = get_host_call(is_device_c=is_cpu_device_backend(target))
     _is_device_call = get_device_call(is_device_c=is_cpu_device_backend(target))
 
+    # Attach chip architecture info so that downstream passes and codegen
+    # (AddressAssign, BuildTileLangPPL) can select chip-specific parameters.
+    mod = mod.with_attr("chip", tvm.runtime.String(chip))
+
     # Phase 1: Lower and legalize the IR
     mod = LowerAndLegalize(mod, target)
 
@@ -232,7 +237,7 @@ def lower(
     host_mod = tir.transform.Filter(_is_host_call)(mod)
     device_mod = tir.transform.Filter(_is_device_call)(mod)
 
-    codegen_mod = tvm._ffi.get_global_func("target.build.tilelang_ppl")(mod,)  # target)
+    codegen_mod = tvm._ffi.get_global_func("target.build.tilelang_ppl")(mod,)
     # return device_mod
     # host_mod = tir.transform.Filter(_is_host_call)(mod)
     # device_mod = tir.transform.Filter(_is_device_call)(mod)

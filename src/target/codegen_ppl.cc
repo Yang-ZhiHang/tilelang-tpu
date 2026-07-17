@@ -36,7 +36,7 @@
 #include <utility>
 #include <vector>
 
-#include "bm1690_lmem.h"
+#include "bm_lmem.h"
 #include "../op/builtin.h"
 #include "../op/bulk_copy.h"
 #include "../op/gemm.h"
@@ -2031,14 +2031,14 @@ void CodeGenTileLangPPL::VisitStmt_(const AllocateNode *op) {
   std::string vid = AllocLocalVarID(buffer_var);
   var_idmap_[buffer_var] = vid;
 
-  auto shape4 = tl::bm1690::NormalizeLocalShape(op->extents, "PPL codegen");
+  auto arch = tl::ChipFromString(chip_);
+  auto shape4 = tl::NormalizeLocalShape(op->extents, "PPL codegen", arch);
   std::string bv_shape = Shape4ToDim4Literal(shape4);
   std::vector<int> shapes;
   shapes.push_back(static_cast<int>(shape4[1]));
   shapes.push_back(static_cast<int>(shape4[3]));
   std::string op_dtype = TargetDTypeName(op->dtype);
-  int64_t tensor_size =
-      tl::bm1690::TpuAlignSizeBytesFromShape4(shape4, op->dtype);
+  int64_t tensor_size = tl::TpuAlignSizeBytesFromShape4(shape4, op->dtype, arch);
   ICHECK_LE(tensor_size, std::numeric_limits<int>::max());
   this->PrintIndent();
   auto addr =

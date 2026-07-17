@@ -211,7 +211,8 @@ class JITKernel(object):
                 target=target,
                 target_host=target_host,
                 enable_host_codegen=enable_host_codegen,
-                enable_device_compile=enable_device_compile)
+                enable_device_compile=enable_device_compile,
+                chip=chip)
 
         self.artifact = artifact
 

@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef TVM_TL_BM1690_LMEM_H_
-#define TVM_TL_BM1690_LMEM_H_
+#ifndef TVM_TL_BM1684X_LMEM_H_
+#define TVM_TL_BM1684X_LMEM_H_
 
 #include <tvm/tir/expr.h>
 
@@ -29,7 +29,7 @@
 
 namespace tvm {
 namespace tl {
-namespace bm1690 {
+namespace bm1684x {
 
 constexpr int64_t kLaneNum = 64;
 constexpr int64_t kEuBytes = 64;
@@ -97,8 +97,8 @@ inline int64_t TpuAlignSizeBytes(const Array<PrimExpr> &shape, DataType dtype,
                                      dtype);
 }
 
-} // namespace bm1690
+} // namespace bm1684x
 } // namespace tl
 } // namespace tvm
 
-#endif // TVM_TL_BM1690_LMEM_H_
+#endif // TVM_TL_BM1684X_LMEM_H_

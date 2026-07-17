@@ -18,6 +18,7 @@
  */
 
 #include "codegen_ppl.h"
+#include <tvm/target/target.h>
 
 namespace tvm {
 namespace codegen {
@@ -28,6 +29,13 @@ std::string BuildTileLangPPL(IRModule mod) {
   bool output_ssa = false;
   CodeGenTileLangPPL cg;
   cg.Init(output_ssa);
+
+  // Extract chip from the module's `chip` attribute.
+  // The Python side sets this before calling the codegen.
+  Optional<String> chip_attr = mod->GetAttr<String>("chip");
+  if (chip_attr.defined()) {
+    cg.SetChip(chip_attr.value());
+  }
 
   for (auto kv : mod->functions) {
     ICHECK(kv.second->IsInstance<PrimFuncNode>())

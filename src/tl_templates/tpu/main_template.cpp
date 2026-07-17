@@ -21,6 +21,7 @@ int init(){{
   tpuRtStreamCreate(&stream);
   auto kernel_dir = getenv("PPL_KERNEL_PATH");
   if (!kernel_dir) {{
+    printf("[ERROR] tpu launch failed: PPL_KERNEL_PATH doesn't exist\n");
     return -2;
   }}
   tpu_module = tpuRtKernelLoadModuleFile(kernel_dir, stream);

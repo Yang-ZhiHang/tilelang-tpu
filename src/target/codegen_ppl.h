@@ -41,6 +41,10 @@ namespace codegen {
 class CodeGenTileLangPPL final : public CodeGenC {
 public:
   CodeGenTileLangPPL();
+
+  /// set the BM chip (e.g. "bm1690", "bm1684x").
+  void SetChip(const std::string &chip) { chip_ = chip; }
+
   std::string Finish();
   // override behavior
   void PrintFuncPrefix(std::ostream &os) final;
@@ -96,6 +100,8 @@ private:
   friend void PrintConst(const FloatImmNode *op, std::ostream &os,
                          CodeGenTileLangPPL *p);
   std::string AllocLocalVarID(const tir::VarNode *v);
+  // Selected BM chip ("bm1690" or "bm1684x").
+  std::string chip_{"bm1690"};
   // The size of the barrier array in shared memory
   int barrier_count_ = -1;
   // whether need mma.h
