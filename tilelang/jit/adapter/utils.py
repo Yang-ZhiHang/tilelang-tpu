@@ -80,10 +80,10 @@ def get_tpu_template_dir() -> str:
 class ChipConfig:
     """Per-CHIP build configuration aggregated into a single lookup table."""
 
-    # Emulator SDK subdirectory under {PPL_TOP}/runtime/{chip}/
-    emulator_sdk_relate_path: str
-    # Emulator shared library filename (full .so name)
-    emulator_soname: str
+    # Emulator SDK subdirectory under `{PPL_TOP}/runtime/{chip}/`
+    runtime_relative_dir: str
+    # Emulator shared library path relative to `{PPL_TOP}/runtime/{chip}/`
+    bmlib_cmodel_path: str
     # Host-side runtime installation sysroot (absolute path)
     runtime_sysroot: str
     # Host-side runtime link library names (passed to -l)
@@ -105,8 +105,8 @@ class ChipConfig:
 _CHIP_CONFIGS: dict[str, ChipConfig] = {
     "bm1690":
         ChipConfig(
-            emulator_sdk_relate_path="tpuv7-runtime-emulator",
-            emulator_soname="libtpuv7_emulator.so",
+            runtime_relative_dir="tpuv7-runtime-emulator",
+            bmlib_cmodel_path="tpuv7-runtime-emulator/lib/libtpuv7_emulator.so",
             runtime_sysroot="/opt/tpuv7/tpuv7-current",
             runtime_link_libs=["tpuv7_rt", "cdm_daemon_emulator", "pthread"],
             toolchain_relpath="third_party/toolchains_dir/Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.6.1",
@@ -114,8 +114,8 @@ _CHIP_CONFIGS: dict[str, ChipConfig] = {
         ),
     "bm1684x":
         ChipConfig(
-            emulator_sdk_relate_path="libsophon/bmlib",
-            emulator_soname="libbmlib.so",
+            runtime_relative_dir="libsophon/bmlib",
+            bmlib_cmodel_path="lib/libcmodel_firmware.so",
             runtime_sysroot="/opt/sophon/libsophon-0.5.2",
             runtime_link_libs=["bmlib", "pthread"],
             toolchain_relpath="third_party/toolchains_dir/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu",

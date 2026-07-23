@@ -169,7 +169,7 @@ class LibraryGenerator(object):
         if cfg is None:
             raise ValueError(f"Unsupported chip: {chip}")
         cross_compile = cfg.cross_compile(PPL_TOP)
-        emulator_sdk_relpath = cfg.emulator_sdk_relate_path
+        runtime_top = f"{PPL_TOP}/runtime/{chip}/{cfg.runtime_relative_dir}"
         runtime_sysroot = cfg.runtime_sysroot
         runtime_link_libs = cfg.runtime_link_libs
 
@@ -180,7 +180,7 @@ class LibraryGenerator(object):
             f"-I{PPL_TOP}/runtime/{chip}/TPU1686/kernel/include",
             f"-I{PPL_TOP}/runtime/kernel",
             f"-I{PPL_TOP}/runtime/customize/include",
-            f"-I{PPL_TOP}/runtime/{chip}/{emulator_sdk_relpath}/include"
+            f"-I{runtime_top}/include"
         ]
 
         # 构建库路径
@@ -188,17 +188,17 @@ class LibraryGenerator(object):
             # "-L/lib/x86_64-linux-gnu/",
             f"-L{PPL_TOP}/runtime/{chip}/lib",
             f"-L{runtime_sysroot}/lib/",
-            f"-L{PPL_TOP}/runtime/{chip}/{emulator_sdk_relpath}/lib"
+            f"-L{runtime_top}/lib"
         ]
         src_dir = get_tpu_template_dir()
 
-        # 编译kernel.c
+        # 编译 kernel.c
         cmd1 = [
             f"{cross_compile}gcc", f"-D__{chip}__", "-Dlibkernel_EXPORTS", *includes,
             "-Wl,--no-undefined", "-fPIC", "-c", f"{src_dir}/kernel.c", "-o", f"{src_dir}/kernel.o"
         ]
 
-        # 编译ppl_helper.c
+        # 编译 ppl_helper.c
         cmd2 = [
             f"{cross_compile}gcc", f"-D__{chip}__", "-Dlibkernel_EXPORTS", *includes,
             "-Wl,--no-undefined", "-fPIC", "-c", f"{PPL_TOP}/runtime/customize/src/ppl_helper.c",
@@ -209,10 +209,8 @@ class LibraryGenerator(object):
         link_cmd = [
             f"{cross_compile}gcc", "-fPIC", "-Wl,--no-undefined", "-shared",
             "-Wl,-soname,libkernel.so", "-o", f"{src_dir}/libkernel.so", f"{src_dir}/kernel.o",
-            f"{src_dir}/ppl_helper.o", *lib_paths, "-Wl,-rpath," +
-            f"{PPL_TOP}/runtime/{chip}/lib:{PPL_TOP}/runtime/{chip}/{emulator_sdk_relpath}/lib",
-            "-Wl,--whole-archive", "-Wl,-Bstatic", f"-l{chip}", "-Wl,-Bdynamic",
-            "-Wl,--no-whole-archive", "-lm"
+            f"{src_dir}/ppl_helper.o", *lib_paths, "-Wl,-rpath,", "-Wl,--whole-archive",
+            "-Wl,-Bstatic", f"-l{chip}", "-Wl,-Bdynamic", "-Wl,--no-whole-archive", "-lm"
         ]
 
         try:
@@ -225,13 +223,13 @@ class LibraryGenerator(object):
         if ret1.returncode != 0 or ret2.returncode != 0 or ret3.returncode != 0:
             raise RuntimeError(f"Compilation Failed! {link_cmd}")
 
-        # 1. 编译main.cpp
+        # 1. 编译 kernel_host
         cmd4 = [
             "g++", f"-D__{chip}__", *includes, "-Wl,--no-undefined", "-std=c++11", "-fPIC", "-c",
             f"{src_dir}/kernel.cpp", "-o", f"{src_dir}/kernel_host.o"
         ]
 
-        # 2. 编译main.cpp
+        # 2. 编译 main
         cmd5 = [
             "g++", f"-D__{chip}__", *includes, "-Wl,--no-undefined", "-std=c++11", "-fPIC", "-c",
             f"{src_dir}/main.cpp", "-o", f"{src_dir}/main.o"
@@ -249,8 +247,7 @@ class LibraryGenerator(object):
             f"{src_dir}/kernel_host.o",
             f"{src_dir}/main.o",
             *lib_paths,
-            "-Wl,-rpath," +
-            f"{PPL_TOP}/runtime/{chip}/lib:{PPL_TOP}/runtime/{chip}/{emulator_sdk_relpath}/lib",
+            "-Wl,-rpath," + f"{runtime_top}/lib",
             *rt_lib_flags,
         ]
 
@@ -274,8 +271,8 @@ class LibraryGenerator(object):
         cfg = get_chip_config(chip)
         if cfg is None:
             raise ValueError(f"Unsupported chip: {chip}")
-        emulator_sdk_relate_path = cfg.emulator_sdk_relate_path
-        emulator_soname = cfg.emulator_soname
+        runtime_top = f"{PPL_TOP}/runtime/{chip}/{cfg.runtime_relative_dir}"
+        bmlib_cmodel_path = cfg.bmlib_cmodel_path
         runtime_link_libs = cfg.runtime_link_libs
 
         def execute_command(cmd, task_name, timeout):
@@ -305,7 +302,7 @@ class LibraryGenerator(object):
         -I{PPL_TOP}/runtime/{chip}/TPU1686/kernel/include \
         -I{PPL_TOP}/runtime/customize/include \
         -I{PPL_TOP}/runtime/kernel \
-        -I{PPL_TOP}/runtime/{chip}/{emulator_sdk_relate_path}/include \
+        -I{runtime_top}/include \
         -I{OUTPUT_PATH}/include \
         -Wl,--no-undefined -O3 -DNDEBUG -O3 -fPIC -std=c++11 \
         -c {KERNEL_CPP} \
@@ -318,7 +315,7 @@ class LibraryGenerator(object):
         -I{PPL_TOP}/runtime/{chip}/TPU1686/kernel/include \
         -I{PPL_TOP}/runtime/customize/include \
         -I{PPL_TOP}/runtime/kernel \
-        -I{PPL_TOP}/runtime/{chip}/{emulator_sdk_relate_path}/include \
+        -I{runtime_top}/include \
         -I{OUTPUT_PATH}/include \
         -Wl,--no-undefined -O3 -DNDEBUG -O3 -fPIC -std=c++11 \
         -c {MAIN_CPP} \
@@ -331,7 +328,7 @@ class LibraryGenerator(object):
         -I{PPL_TOP}/runtime/{chip}/TPU1686/kernel/include \
         -I{PPL_TOP}/runtime/customize/include \
         -I{PPL_TOP}/runtime/kernel \
-        -I{PPL_TOP}/runtime/{chip}/{emulator_sdk_relate_path}/include \
+        -I{runtime_top}/include \
         -I{OUTPUT_PATH}/include \
         -I{OUTPUT_PATH}/include \
         -I{PPL_TOP}/include \
@@ -348,7 +345,7 @@ class LibraryGenerator(object):
         -I{PPL_TOP}/runtime/{chip}/TPU1686/kernel/include \
         -I{PPL_TOP}/runtime/customize/include \
         -I{PPL_TOP}/runtime/kernel \
-        -I{PPL_TOP}/runtime/{chip}/{emulator_sdk_relate_path}/include \
+        -I{runtime_top}/include \
         -I{OUTPUT_PATH}/include \
         -I{OUTPUT_PATH}/include \
         -I{PPL_TOP}/include \
@@ -365,9 +362,9 @@ class LibraryGenerator(object):
         {OUTPUT_PATH}/kernel_c.o \
         {OUTPUT_PATH}/ppl_helper_c.o \
         -L{PPL_TOP}/runtime/{chip}/lib \
-        -L{PPL_TOP}/runtime/{chip}/{emulator_sdk_relate_path}/lib \
-        -Wl,-rpath,{PPL_TOP}/runtime/{chip}/lib:{PPL_TOP}/runtime/{chip}/{emulator_sdk_relate_path}/lib \
-        {PPL_TOP}/runtime/{chip}/{emulator_sdk_relate_path}/lib/{emulator_soname} -lm"""
+        -L{runtime_top}/lib \
+        -Wl,-rpath,{PPL_TOP}/runtime/{chip}/lib:{runtime_top}/lib \
+        {PPL_TOP}/runtime/{chip}/{bmlib_cmodel_path} -lm"""
 
         execute_command(cmd5, "Link libkernel.so", timeout)
 
@@ -377,9 +374,9 @@ class LibraryGenerator(object):
         {OUTPUT_PATH}/kernel_cpp.o \
         {OUTPUT_PATH}/main_cpp.o \
         -o {OUTPUT_PATH}/main.so \
-        -L{PPL_TOP}/runtime/{chip}/{emulator_sdk_relate_path}/lib \
+        -L{runtime_top}/lib \
         -L{PPL_TOP}/runtime/{chip}/lib \
-        -Wl,--disable-new-dtags,-rpath,{PPL_TOP}/runtime/{chip}/{emulator_sdk_relate_path}/lib:{PPL_TOP}/runtime/{chip}/lib \
+        -Wl,--disable-new-dtags,-rpath,{runtime_top}/lib:{PPL_TOP}/runtime/{chip}/lib \
         {rt_lib_flags}"""
 
         execute_command(cmd6, "Link main.so lib", timeout)

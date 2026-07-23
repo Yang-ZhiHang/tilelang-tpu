@@ -213,6 +213,7 @@ class CythonKernelAdapter(BaseKernelAdapter):
         self.wrapper.assign_host_module(host_mod)
         self.wrapper.assign_device_module(device_mod)
         self.wrapper.assign_output_indices(self.result_idx)
+        self.wrapper.assign_chip(self.chip)
         self.wrapped_source = self.wrapper.wrap(self.get_kernel_source(kernel_only=True))
 
         self.lib_generator.update_lib_code(self.wrapped_source)

@@ -31,7 +31,8 @@ def matmul(M, N, K, block_M, block_N, block_K, dtype="float16", accum_dtype="flo
 
 
 
-kernel = tilelang.compile(matmul(64,64,64,32,32,32), out_idx=-1, target="tpu", mode="pcie") 
+# kernel = tilelang.compile(matmul(64,64,64,32,32,32), out_idx=-1, target="tpu", mode="cmodel", chip="bm1690") 
+kernel = tilelang.compile(matmul(64,64,64,32,32,32), out_idx=-1, target="tpu", mode="cmodel", chip="bm1684x") 
 
 a = torch.randn(64, 64).half()
 b = torch.randn(64, 64).half()

@@ -1,6 +1,8 @@
 # Please ensure you have completed the `needed specified by user` part in the following lines.
 
 # set up sophgo environment
+# inside the tpu-mlir project, please update ppl version to <= 1.4.195 using the `update.sh` which
+# is provided in the tpu-mlir project.
 export TPU_MLIR_PATH=/workspace/tpu-mlir # needed specified by user.
 source $TPU_MLIR_PATH/envsetup.sh
 

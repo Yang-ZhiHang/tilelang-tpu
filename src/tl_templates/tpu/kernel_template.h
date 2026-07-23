@@ -1,6 +1,6 @@
 #pragma once
-#ifndef __bm1690__
-#define __bm1690__
+#ifndef __{chip}__
+#define __{chip}__
 #endif
 
 #include <stdint.h>

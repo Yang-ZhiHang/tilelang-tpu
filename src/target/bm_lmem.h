@@ -28,7 +28,7 @@ enum class BM16X {
 
 /// Convert chip string to BMChip.
 inline BM16X ChipFromString(const std::string &chip) {
-  if (chip == "bm1684x" || chip == "BM1684X")
+  if (chip == "bm1684x")
     return BM16X::BM1684X;
   return BM16X::BM1690;
 }

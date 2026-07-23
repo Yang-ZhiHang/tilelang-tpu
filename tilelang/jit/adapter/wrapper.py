@@ -660,7 +660,8 @@ class TLTPUSourceWrapper(object):
                  device_mod: Optional[IRModule] = None,
                  host_mod: Optional[IRModule] = None,
                  pass_configs: Optional[Dict[str, Any]] = None,
-                 output_indices: Optional[List[int]] = None):
+                 output_indices: Optional[List[int]] = None,
+                 chip: str = "bm1690"):
         self.mod = scheduled_ir_module
         self.target = target
         self.source = source
@@ -668,6 +669,7 @@ class TLTPUSourceWrapper(object):
         self.host_mod = host_mod
         self.pass_configs = pass_configs
         self.output_indices = output_indices if output_indices is not None else []
+        self.chip = chip
         self.function_args = None
         self.function_names: Optional[str] = None
         self.dynamic_smem_buf: Optional[int] = None
@@ -722,7 +724,8 @@ class TLTPUSourceWrapper(object):
                     struct_members=struct_members,
                     function_name=function_name,
                     func_params=func_params,
-                    struct_params=struct_params
+                    struct_params=struct_params,
+                    chip=self.chip
                 )
         
         with open(output_file, 'w') as f:
@@ -767,6 +770,8 @@ class TLTPUSourceWrapper(object):
         free_statements = []
         kernel_call_args = []
         
+        chip = self.chip
+
         for i, arg in enumerate(self.function_args):
             arg_name = arg["name"]
             elem_bytes = self._ELEM_BYTES.get(arg.get("dtype_str", ""), None)
@@ -778,15 +783,25 @@ class TLTPUSourceWrapper(object):
             
             arg_declarations.append(f'  char* {arg_name} = static_cast<char*>(args[{i}]);')
             arg_declarations.append(f'  size_t {arg_name}_size = {data_size};')
-            device_declarations.append(f'  void *dev_{arg_name};')
-            malloc_statements.append(f'  tpuRtMalloc((void **)(&dev_{arg_name}), {arg_name}_size, 0);')
-            memcpy_s2d_statements.append(f'  tpuRtMemcpyS2D(dev_{arg_name}, {arg_name}, {arg_name}_size);')
-            
-            if i in self.output_indices:
-                memcpy_d2s_statements.append(f'  tpuRtMemcpyD2S({arg_name}, dev_{arg_name}, {arg_name}_size);')
-            
-            free_statements.append(f'  tpuRtFree(&dev_{arg_name}, 0);')
-            kernel_call_args.append(f'(unsigned long long)dev_{arg_name}')
+
+            if chip == "bm1684x":
+                # bm1684x 使用 bm_device_mem_t 结构体
+                device_declarations.append(f'  bm_device_mem_t dev_{arg_name};')
+                malloc_statements.append(f'  bm_malloc_device_byte(handle, &dev_{arg_name}, {arg_name}_size);')
+                memcpy_s2d_statements.append(f'  bm_memcpy_s2d(handle, dev_{arg_name}, {arg_name});')
+                if i in self.output_indices:
+                    memcpy_d2s_statements.append(f'  bm_memcpy_d2s(handle, {arg_name}, dev_{arg_name});')
+                free_statements.append(f'  bm_free_device(handle, dev_{arg_name});')
+                kernel_call_args.append(f'(unsigned long long)dev_{arg_name}.u.device.device_addr')
+            else:
+                # bm1690 使用裸指针
+                device_declarations.append(f'  void *dev_{arg_name};')
+                malloc_statements.append(f'  tpuRtMalloc((void **)(&dev_{arg_name}), {arg_name}_size, 0);')
+                memcpy_s2d_statements.append(f'  tpuRtMemcpyS2D(dev_{arg_name}, {arg_name}, {arg_name}_size);')
+                if i in self.output_indices:
+                    memcpy_d2s_statements.append(f'  tpuRtMemcpyD2S({arg_name}, dev_{arg_name}, {arg_name}_size);')
+                free_statements.append(f'  tpuRtFree(&dev_{arg_name}, 0);')
+                kernel_call_args.append(f'(unsigned long long)dev_{arg_name}')
         
         kernel_call = f'  int rst = {function_name}({", ".join(kernel_call_args)});'
         pure_kernel_call = f'  rst = {function_name}({", ".join(kernel_call_args)});'
@@ -844,6 +859,7 @@ class TLWrapper(BaseWrapper):
     target: Optional[Target] = None
     lib: Optional[object] = None
     output_indices: List[int] = []
+    chip: str = "bm1690"
 
     def __init__(self, target: Target):
         super().__init__()
@@ -866,6 +882,9 @@ class TLWrapper(BaseWrapper):
 
     def assign_output_indices(self, output_indices: List[int]):
         self.output_indices = output_indices
+
+    def assign_chip(self, chip: str):
+        self.chip = chip
 
     # Get Scheduled Rt Module and return source to be compiled
     def wrap(self, c_source: str):
@@ -897,6 +916,7 @@ class TLWrapper(BaseWrapper):
                 device_mod=self.device_mod,
                 host_mod=self.host_mod,
                 pass_configs=self.pass_configs,
-                output_indices=self.output_indices
+                output_indices=self.output_indices,
+                chip=self.chip
                 )
         return wrapper.lib_code

@@ -1,4 +1,9 @@
+#ifdef __bm1690__
 #include <tpuv7_rt.h>
+#elif defined(__bm1684x__)
+#include "bmlib_runtime.h"
+#include "tpu_defs.h"
+#endif
 #include "host_test_utils.h"
 #include "kernel.h"
 #include <cstdlib>
@@ -8,10 +13,16 @@
 #include <chrono>
 #include <iostream>
 
+#ifdef __bm1690__
 tpuRtStream_t stream;
 tpuRtKernelModule_t tpu_module;
+#elif defined(__bm1684x__)
+bm_handle_t handle;
+tpu_kernel_module_t tpu_module;
+#endif
 
 int init(){{
+#ifdef __bm1690__
   tpuRtStatus_t ret;
   ret = tpuRtInit();
   if (ret != tpuRtSuccess) {{
@@ -19,12 +30,23 @@ int init(){{
   }}
   tpuRtSetDevice(14); // Set TPU ID
   tpuRtStreamCreate(&stream);
+#elif defined(__bm1684x__)
+  bm_status_t ret = BM_SUCCESS;
+  ret = bm_dev_request(&handle, 0);
+  if (ret != BM_SUCCESS)
+    throw("bm_dev_request_failed");
+  printf("bm_dev_request success\n");
+#endif
   auto kernel_dir = getenv("PPL_KERNEL_PATH");
   if (!kernel_dir) {{
     printf("[ERROR] tpu launch failed: PPL_KERNEL_PATH doesn't exist\n");
     return -2;
   }}
+#ifdef __bm1690__
   tpu_module = tpuRtKernelLoadModuleFile(kernel_dir, stream);
+#elif defined(__bm1684x__)
+  tpu_module = tpu_kernel_load_module_file(handle, kernel_dir);
+#endif
   if (NULL == tpu_module) {{
     printf("tpuRtKernelLoadModuleFile failed\n");
     return -2;
@@ -33,8 +55,13 @@ int init(){{
 }}
 
 void post(){{
+#ifdef __bm1690__
   tpuRtKernelUnloadModule(tpu_module, stream);
   tpuRtStreamDestroy(stream);
+#elif defined(__bm1684x__)
+  tpu_kernel_free_module(handle, tpu_module);
+  bm_dev_free(handle);
+#endif
 }}
 
 extern "C" int tilelang_tpu_run(void** args) {{
@@ -116,7 +143,11 @@ extern "C" int tilelang_tpu_run(void** args) {{
   
   // 拷贝输出数据回主机
 {memcpy_d2s_statements}
+#ifdef __bm1690__
   tpuRtStreamSynchronize(stream);
+#elif defined(__bm1684x__)
+  bm_thread_sync(handle);
+#endif
 
   // 释放设备内存
 {free_statements}
